@@ -1,24 +1,26 @@
 import sqlite3
 import sys
 
-from PyQt5 import uic
 from PyQt5.QtWidgets import QDialog, QApplication, QMainWindow, QTableWidgetItem
 from pyqt5_plugins.examplebutton import QtWidgets
+from Ui import addEditCoffeeForm
+from Ui import main_design
 
 data = {}
 genreText = ''
 
 
-class PreDialog(QDialog):
-    def __init__(self, parent=None, name=" ", st=" ", tip=" ", op=" ", check=" ", V=" "):
+class PreDialog(QDialog, addEditCoffeeForm.Ui_Dialog):
+    def __init__(self, parent=None, name=" ", st=" ", type_=" ", op=" ", check=" ", V=" "):
         global data
         super(PreDialog, self).__init__(parent)
         self.parent = parent
-        uic.loadUi('addEditCoffeeForm.ui', self)
+
+        self.setupUi(self)
         self.setWindowTitle('Добавить элемент')
         self.lineEdit_2.setText(name)
         self.lineEdit.setText(st)
-        self.lineEdit_3.setText(tip)
+        self.lineEdit_3.setText(type_)
         self.lineEdit_4.setText(op)
         self.lineEdit_5.setText(check)
         self.lineEdit_6.setText(V)
@@ -26,9 +28,6 @@ class PreDialog(QDialog):
         data = None
 
         self.pushButton.clicked.connect(self.onClick)
-
-    def closeEvent(self, event):
-        self.parent.show()
 
     def onClick(self):
         global data
@@ -40,35 +39,53 @@ class PreDialog(QDialog):
                 'объем упаковки': self.lineEdit_6.text()}
         self.accept()
 
+    def closeEvent(self, event):
+        self.parent.show()
 
-class Example(QMainWindow):
+
+class Example(QMainWindow, main_int.Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('main.ui', self)
-        self.maxID = 0
+
+        self.setupUi(self)
         self.result = []
+        self.maxID = 0
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle('Фильмотека')
-        self.update1()
+        self.update_()
         self.pushButton.clicked.connect(self.addFilm)
         self.pushButton_2.clicked.connect(self.updateFilm)
 
-    def update1(self):
+    def update_(self):
         self.tableWidget.setHorizontalHeaderLabels(
             ['ID', 'название сорта', 'степень обжарки', 'молотый/в зернах', 'описание вкуса', 'цена', 'объем упаковки'])
         self.tableWidget.setRowCount(0)
-        con = sqlite3.connect("coffee.sqlite")
+        con = sqlite3.connect("data/coffee.sqlite")
         cur = con.cursor()
         res = list(cur.execute("""SELECT * FROM COFFEE"""))
-        for p in range(len(res)):
+        for i in range(len(res)):
             self.tableWidget.setRowCount(
                 self.tableWidget.rowCount() + 1)
-            for q in range(len(res[p])):
-                self.tableWidget.setItem(p, q, QTableWidgetItem(str(res[p][q])))
+            for j in range(len(res[i])):
+                self.tableWidget.setItem(i, j, QTableWidgetItem(str(res[i][j])))
 
         con.close()
+
+    def addFilm(self):
+        dialog = PreDialog(self)
+        result = dialog.exec_()
+        if result == QtWidgets.QDialog.Accepted:
+            self.maxID += 1
+            con = sqlite3.connect("data/coffee.sqlite")
+            cur = con.cursor()
+            cur.execute(f"""INSERT INTO COFFEE VALUES 
+            ({self.maxID}, '{data['название сорта']}', '{data['степень обжарки']}', 
+            '{data['молотый/в зернах']}', '{data['описание вкуса']}', '{data['цена']}', '{data['объем упаковки']}')""")
+            con.commit()
+            con.close()
+            self.update_()
 
     def updateFilm(self):
         idx = self.tableWidget.currentIndex().row()
@@ -82,7 +99,7 @@ class Example(QMainWindow):
                            V=self.tableWidget.item(idx, 6).text())
         result = dialog.exec_()
         if result == QtWidgets.QDialog.Accepted:
-            con = sqlite3.connect("coffee.sqlite")
+            con = sqlite3.connect("data/coffee.sqlite")
             cur = con.cursor()
             cur.execute(f"""UPDATE COFFEE
                             SET 'название сорта'='{data['название сорта']}', 
@@ -93,23 +110,9 @@ class Example(QMainWindow):
                             'объем упаковки'='{data['объем упаковки']}'
                             WHERE id={self.tableWidget.item(idx, 0).text()}""")
             con.commit()
-            self.update1()
+            self.update_()
 
             con.close()
-
-    def addFilm(self):
-        dialog = PreDialog(self)
-        result = dialog.exec_()
-        if result == QtWidgets.QDialog.Accepted:
-            self.maxID += 1
-            con = sqlite3.connect("coffee.sqlite")
-            cur = con.cursor()
-            cur.execute(f"""INSERT INTO COFFEE VALUES 
-            ({self.maxID}, '{data['название сорта']}', '{data['степень обжарки']}', 
-            '{data['молотый/в зернах']}', '{data['описание вкуса']}', '{data['цена']}', '{data['объем упаковки']}')""")
-            con.commit()
-            con.close()
-            self.update1()
 
 
 if __name__ == '__main__':
